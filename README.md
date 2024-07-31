@@ -15,5 +15,5 @@ To install NuEnv, you can clone this repository into your nushell scripts folder
 
 ```bash
 git clone https://github.com/fancy-whale/nuenv.git ($nu.default-config-dir | path join scripts/nuenv)
-echo "source nuenv/nuenv.nu\n" | save --append $nu.config-path
+echo "\nsource nuenv/nuenv.nu" | save --append $nu.config-path
 ```
