@@ -4,7 +4,7 @@ let env_change_closure = {|before, after|
         if ($before | path join ".env" | path exists) {
             if ($before | path join ".env" | path type | str ends-with "file") {
                 let env_file = ($before | path join ".env")
-                open $env_file | lines | parse '{key}={value}' | each {|ea| hide-env $ea.key}
+                open $env_file | lines | parse '{key}={value}' | get key | hide-env ...$in
                 print $"(ansi default)Unset env vars from ($env_file)(ansi reset)"
             }
         } else {
