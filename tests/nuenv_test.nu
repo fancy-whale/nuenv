@@ -41,6 +41,7 @@ def test_null_after_does_not_fail [] {
 
     "KEY1=ONE" | save -f ($before_dir | path join ".env")
     load-env { KEY1: "ONE" }
+    assert_true (($env | get KEY1) == "ONE") "setup should load KEY1 before unload"
 
     try {
         do --env $env_change_closure $before_dir null
@@ -61,6 +62,7 @@ def test_empty_env_file_does_not_fail [] {
     mkdir $after_dir
 
     "" | save -f ($after_dir | path join ".env")
+    let before_env_columns = ($env | columns | sort)
 
     try {
         do --env $env_change_closure null $after_dir
@@ -69,7 +71,8 @@ def test_empty_env_file_does_not_fail [] {
         error make { msg: $"env_change_closure failed with empty .env: ($err.msg)" }
     }
 
-    assert_true (($env | get --optional KEY_FROM_EMPTY | is-empty)) "empty .env should not set vars"
+    let after_env_columns = ($env | columns | sort)
+    assert_true ($before_env_columns == $after_env_columns) "empty .env should not change env vars"
 
     rm -r $base_dir
 }
