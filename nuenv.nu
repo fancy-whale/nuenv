@@ -15,11 +15,16 @@ let env_change_closure = {|before, after|
         }
     }
     # Adding environment variables from current directory's .env file
-    if ($after | path join ".env" | path exists) {
-        if ($after | path join ".env" | path type | str ends-with "file") {
-            let env_file = ($after | path join ".env")
-            open $env_file | lines | parse "{key}={value}" | transpose -r -d | load-env
-            print $"(ansi magenta)Loaded env vars from ($env_file)(ansi reset)"
+    if ($after != null) {
+        if ($after | path join ".env" | path exists) {
+            if ($after | path join ".env" | path type | str ends-with "file") {
+                let env_file = ($after | path join ".env")
+                let env_values = (open $env_file | lines | parse "{key}={value}")
+                if (not ($env_values | is-empty)) {
+                    $env_values | transpose -r -d | load-env
+                    print $"(ansi magenta)Loaded env vars from ($env_file)(ansi reset)"
+                }
+            }
         }
     }
 }

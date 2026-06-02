@@ -34,4 +34,46 @@ def test_unload_missing_env_vars [] {
     rm -r $base_dir
 }
 
+def test_null_after_does_not_fail [] {
+    let base_dir = (mktemp -d | str trim)
+    let before_dir = ($base_dir | path join "before")
+    mkdir $before_dir
+
+    "KEY1=ONE" | save -f ($before_dir | path join ".env")
+    load-env { KEY1: "ONE" }
+
+    try {
+        do --env $env_change_closure $before_dir null
+    } catch { |err|
+        rm -r $base_dir
+        error make { msg: $"env_change_closure failed with null after: ($err.msg)" }
+    }
+
+    let missing_key1 = ($env | get --optional KEY1 | is-empty)
+    assert_true $missing_key1 "should unload previous vars when after is null"
+
+    rm -r $base_dir
+}
+
+def test_empty_env_file_does_not_fail [] {
+    let base_dir = (mktemp -d | str trim)
+    let after_dir = ($base_dir | path join "after")
+    mkdir $after_dir
+
+    "" | save -f ($after_dir | path join ".env")
+
+    try {
+        do --env $env_change_closure null $after_dir
+    } catch { |err|
+        rm -r $base_dir
+        error make { msg: $"env_change_closure failed with empty .env: ($err.msg)" }
+    }
+
+    assert_true (($env | get --optional KEY_FROM_EMPTY | is-empty)) "empty .env should not set vars"
+
+    rm -r $base_dir
+}
+
 test_unload_missing_env_vars
+test_null_after_does_not_fail
+test_empty_env_file_does_not_fail
