@@ -94,12 +94,16 @@ def test_env_file_format_variants [] {
         "KEY_SPACED = SPACED"
         "KEY_EQUALS=ONE=TWO"
         "NOT_AN_ENV_LINE"
+        "="
+        "export =MISSING_KEY"
+        "    =    "
         ""
         "KEY_STANDARD=STANDARD"
     ] | str join (char nl))
     $env_content | save -f ($after_dir | path join ".env")
 
     try { hide-env KEY_EXPORT KEY_SPACED KEY_EQUALS KEY_STANDARD } catch { }
+    let before_env_columns = ($env | columns | sort)
 
     try {
         do --env $env_change_closure null $after_dir
@@ -113,6 +117,9 @@ def test_env_file_format_variants [] {
     assert_true (($env | get KEY_EQUALS) == "ONE=TWO") "should keep equals signs inside values"
     assert_true (($env | get KEY_STANDARD) == "STANDARD") "should load standard KEY=VALUE format"
     assert_true (($env | get --optional NOT_AN_ENV_LINE | is-empty)) "should ignore malformed .env lines"
+    let after_env_columns = ($env | columns | sort)
+    let added_keys = ($after_env_columns | where {|name| not ($name in $before_env_columns)} | sort)
+    assert_true ($added_keys == ["KEY_EQUALS" "KEY_EXPORT" "KEY_SPACED" "KEY_STANDARD"]) "malformed lines should not create extra env vars"
 
     try { hide-env KEY_EXPORT KEY_SPACED KEY_EQUALS KEY_STANDARD } catch { }
     rm -r $base_dir
