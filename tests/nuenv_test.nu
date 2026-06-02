@@ -83,6 +83,42 @@ def test_empty_env_file_does_not_fail [] {
     rm -r $base_dir
 }
 
+def test_env_file_format_variants [] {
+    let base_dir = (mktemp -d | str trim)
+    let after_dir = ($base_dir | path join "after")
+    mkdir $after_dir
+
+    let env_content = ([
+        "# comment"
+        "export KEY_EXPORT=EXPORTED"
+        "KEY_SPACED = SPACED"
+        "KEY_EQUALS=ONE=TWO"
+        "NOT_AN_ENV_LINE"
+        ""
+        "KEY_STANDARD=STANDARD"
+    ] | str join (char nl))
+    $env_content | save -f ($after_dir | path join ".env")
+
+    try { hide-env KEY_EXPORT KEY_SPACED KEY_EQUALS KEY_STANDARD } catch { }
+
+    try {
+        do --env $env_change_closure null $after_dir
+    } catch { |err|
+        rm -r $base_dir
+        error make { msg: $"env_change_closure failed with mixed .env formats: ($err.msg)" }
+    }
+
+    assert_true (($env | get KEY_EXPORT) == "EXPORTED") "should load export-prefixed format"
+    assert_true (($env | get KEY_SPACED) == "SPACED") "should load key/value with spaces around equals"
+    assert_true (($env | get KEY_EQUALS) == "ONE=TWO") "should keep equals signs inside values"
+    assert_true (($env | get KEY_STANDARD) == "STANDARD") "should load standard KEY=VALUE format"
+    assert_true (($env | get --optional NOT_AN_ENV_LINE | is-empty)) "should ignore malformed .env lines"
+
+    try { hide-env KEY_EXPORT KEY_SPACED KEY_EQUALS KEY_STANDARD } catch { }
+    rm -r $base_dir
+}
+
 test_unload_missing_env_vars
 test_null_after_does_not_fail
 test_empty_env_file_does_not_fail
+test_env_file_format_variants
