@@ -41,7 +41,8 @@ def test_null_after_does_not_fail [] {
 
     "KEY1=ONE" | save -f ($before_dir | path join ".env")
     load-env { KEY1: "ONE" }
-    assert_true (($env | get KEY1) == "ONE") "setup should load KEY1 before unload"
+    let setup_key1 = ($env | get --optional KEY1)
+    assert_true ($setup_key1 == "ONE") "setup should load KEY1 before unload"
 
     try {
         do --env $env_change_closure $before_dir null
@@ -50,8 +51,8 @@ def test_null_after_does_not_fail [] {
         error make { msg: $"env_change_closure failed with null after: ($err.msg)" }
     }
 
-    let missing_key1 = ($env | get --optional KEY1 | is-empty)
-    assert_true $missing_key1 "should unload previous vars when after is null"
+    let is_key1_missing = ($env | get --optional KEY1 | is-empty)
+    assert_true $is_key1_missing "should unload previous vars when after is null"
 
     rm -r $base_dir
 }
@@ -62,6 +63,8 @@ def test_empty_env_file_does_not_fail [] {
     mkdir $after_dir
 
     "" | save -f ($after_dir | path join ".env")
+    load-env { NUENV_SENTINEL: "UNCHANGED" }
+    let before_sentinel = ($env | get NUENV_SENTINEL)
     let before_env_columns = ($env | columns | sort)
 
     try {
@@ -72,8 +75,11 @@ def test_empty_env_file_does_not_fail [] {
     }
 
     let after_env_columns = ($env | columns | sort)
+    let after_sentinel = ($env | get NUENV_SENTINEL)
     assert_true ($before_env_columns == $after_env_columns) "empty .env should not change env vars"
+    assert_true ($before_sentinel == $after_sentinel) "empty .env should not change existing env values"
 
+    try { hide-env NUENV_SENTINEL } catch { }
     rm -r $base_dir
 }
 
