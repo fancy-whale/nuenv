@@ -1,3 +1,29 @@
+let parse_env_file = {|env_file|
+    open $env_file
+    | lines
+    | each {|line|
+        let trimmed = ($line | str trim)
+        if (($trimmed | is-empty) or ($trimmed | str starts-with "#")) {
+            null
+        } else {
+            let normalized = ($trimmed | str replace -r '^export\s+' '')
+            if (not ($normalized | str contains "=")) {
+                null
+            } else {
+                let parts = ($normalized | split row "=")
+                let key = ($parts | first | str trim)
+                let value = ($parts | skip 1 | str join "=" | str trim)
+                if ($key | is-empty) {
+                    null
+                } else {
+                    { key: $key, value: $value }
+                }
+            }
+        }
+    }
+    | compact
+}
+
 let env_change_closure = {|before, after|
     # Removing environment variables from previous directory's .env file
     if ($before != null) {
@@ -5,7 +31,7 @@ let env_change_closure = {|before, after|
         if ($env_file | path exists) {
             if ($env_file | path type | str ends-with "file") {
                 let env_names = ($env | columns)
-                let env_keys = (open $env_file | lines | parse '{key}={value}' | get key)
+                let env_keys = (do $parse_env_file $env_file | each {|entry| $entry.key })
                 let keys_to_unset = ($env_keys | where { |key| $key in $env_names })
                 if (not ($keys_to_unset | is-empty)) {
                     hide-env ...$keys_to_unset
@@ -15,11 +41,16 @@ let env_change_closure = {|before, after|
         }
     }
     # Adding environment variables from current directory's .env file
-    if ($after | path join ".env" | path exists) {
-        if ($after | path join ".env" | path type | str ends-with "file") {
-            let env_file = ($after | path join ".env")
-            open $env_file | lines | parse "{key}={value}" | transpose -r -d | load-env
-            print $"(ansi magenta)Loaded env vars from ($env_file)(ansi reset)"
+    if ($after != null) {
+        if ($after | path join ".env" | path exists) {
+            if ($after | path join ".env" | path type | str ends-with "file") {
+                let env_file = ($after | path join ".env")
+                let env_values = (do $parse_env_file $env_file)
+                if (not ($env_values | is-empty)) {
+                    $env_values | transpose -r -d | load-env
+                    print $"(ansi magenta)Loaded env vars from ($env_file)(ansi reset)"
+                }
+            }
         }
     }
 }
